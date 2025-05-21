@@ -7,17 +7,31 @@
     body {
       font-family: Arial, sans-serif;
       text-align: center;
+      background: #f4f4f4;
       padding: 20px;
+    }
+    h2 {
+      color: #333;
     }
     video, canvas {
       border-radius: 8px;
-      margin-bottom: 12px;
+      margin: 10px 0;
+      max-width: 100%;
     }
     select, input, button {
-      margin: 5px;
+      margin: 8px;
       padding: 10px;
       font-size: 16px;
       border-radius: 6px;
+    }
+    button {
+      cursor: pointer;
+      background-color: #4CAF50;
+      color: white;
+      border: none;
+    }
+    button:hover {
+      background-color: #45a049;
     }
   </style>
 </head>
@@ -25,9 +39,9 @@
   <h2>📸 Registro Fotográfico Mayoreo</h2>
 
   <video id="video" width="320" height="240" autoplay playsinline></video><br>
-  <button onclick="tomarFoto()">📸 Tomar Foto</button><br>
+  <button onclick="tomarFoto()">📷 Tomar Foto</button><br>
 
-  <canvas id="canvas" width="320" height="240"></canvas><br>
+  <canvas id="canvas" width="320" height="240" style="display: none;"></canvas><br>
 
   <select id="agente">
     <option value="">-- Selecciona tu nombre --</option>
@@ -40,7 +54,7 @@
     <option value="leandro">Leandro</option>
     <option value="Dylan">Dylan</option>
     <option value="jonathan">Jonathan</option>
-  </select>
+  </select><br>
 
   <input type="text" id="nombreFoto" placeholder="Nombre de la foto"><br>
 
@@ -51,20 +65,20 @@
     const canvas = document.getElementById("canvas");
     const contexto = canvas.getContext("2d");
 
-    // Activar la cámara trasera por defecto
+    // Solicita la cámara trasera si está disponible
     navigator.mediaDevices.getUserMedia({
-      video: { facingMode: { exact: "environment" } }, audio: false
-    })
-    .then(stream => {
+      video: { facingMode: { exact: "environment" } },
+      audio: false
+    }).then(stream => {
       video.srcObject = stream;
-    })
-    .catch(error => {
-      console.warn("No se pudo acceder a la cámara trasera. Usando cámara predeterminada.");
+    }).catch(() => {
+      // Si no se puede acceder a la cámara trasera, usa la predeterminada
       navigator.mediaDevices.getUserMedia({ video: true })
         .then(stream => video.srcObject = stream);
     });
 
     function tomarFoto() {
+      canvas.style.display = "block";
       contexto.drawImage(video, 0, 0, canvas.width, canvas.height);
     }
 
@@ -73,7 +87,7 @@
       const nombreFoto = document.getElementById("nombreFoto").value.trim();
 
       if (!nombreAgente || !nombreFoto) {
-        alert("⚠️ Debes seleccionar tu nombre y escribir un nombre para la foto.");
+        alert("⚠️ Selecciona tu nombre y escribe el nombre de la foto.");
         return;
       }
 
@@ -95,9 +109,9 @@
         .then(data => {
           alert("✅ " + data);
           document.getElementById("nombreFoto").value = "";
+          canvas.style.display = "none";
         })
         .catch(err => {
-          console.error(err);
           alert("❌ Error al subir: " + err.message);
         });
       }, "image/png");
@@ -105,4 +119,3 @@
   </script>
 </body>
 </html>
-
