@@ -1,88 +1,68 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0">
   <title>Captura de Fotos</title>
   <style>
-    video, img {
-      width: 100%;
-      max-width: 400px;
-      margin-top: 10px;
-    }
-    body {
-      font-family: Arial, sans-serif;
-      padding: 20px;
-      text-align: center;
-    }
+    body { font-family: Arial, sans-serif; text-align:center; padding:20px; }
+    video, img { width:100%; max-width:400px; margin-top:10px; }
   </style>
 </head>
 <body>
   <h1>Captura de Fotos</h1>
-
   <label for="nombre">Nombre del archivo:</label><br>
   <input type="text" id="nombre" placeholder="Ej: producto123"><br><br>
-
   <label for="carpeta">Nombre de la carpeta:</label><br>
   <input type="text" id="carpeta" placeholder="Ej: Dylan"><br><br>
 
   <video id="video" autoplay></video><br>
   <button onclick="tomarFoto()">📸 Tomar Foto</button><br><br>
-  <canvas id="canvas" style="display: none;"></canvas>
+  <canvas id="canvas" style="display:none;"></canvas>
   <img id="preview" src=""><br>
   <p id="estado"></p>
 
   <script>
-    const video = document.getElementById('video');
+    const video  = document.getElementById('video');
     const canvas = document.getElementById('canvas');
-    const preview = document.getElementById('preview');
+    const preview= document.getElementById('preview');
     const estado = document.getElementById('estado');
 
-    navigator.mediaDevices.getUserMedia({ video: true })
-      .then(stream => {
-        video.srcObject = stream;
-      })
+    // Acceso a cámara
+    navigator.mediaDevices.getUserMedia({ video:true })
+      .then(stream => video.srcObject = stream)
       .catch(err => {
-        console.error("Error al acceder a la cámara: ", err);
+        console.error(err);
         estado.textContent = "No se pudo acceder a la cámara.";
       });
 
-    async function tomarFoto() {
-      const nombre = document.getElementById('nombre').value.trim();
+    function tomarFoto() {
+      const nombre  = document.getElementById('nombre').value.trim();
       const carpeta = document.getElementById('carpeta').value.trim();
-
       if (!nombre || !carpeta) {
         estado.textContent = "Por favor ingresa nombre y carpeta.";
         return;
       }
 
-      canvas.width = video.videoWidth;
+      canvas.width  = video.videoWidth;
       canvas.height = video.videoHeight;
-      canvas.getContext('2d').drawImage(video, 0, 0);
-
-      const dataUrl = canvas.toDataURL("image/jpeg");
+      canvas.getContext('2d').drawImage(video,0,0);
+      const dataUrl = canvas.toDataURL('image/jpeg');
       preview.src = dataUrl;
-      estado.textContent = "Subiendo imagen...";
+      estado.textContent = "Subiendo imagen…";
 
-      try {
-        const respuesta = await fetch('https://script.google.com/macros/s/AKfycbypy__mif6dkeBBR36Mu120r7rjJpQCu1Mcp17L00lyIdCjkz3zgG4XphWjTHXwtEiZ/exec', {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify({
-            nombreArchivo: nombre,
-            carpeta: carpeta,
-            imagen: dataUrl
-          })
+      // Llamada al servidor dentro de Apps Script
+      google.script.run
+        .withSuccessHandler(msg => estado.textContent = msg)
+        .withFailureHandler(err => {
+          console.error(err);
+          estado.textContent = "❌ Hubo un error al subir.";
+        })
+        .uploadImage({
+          nombreArchivo: nombre,
+          carpeta: carpeta,
+          imagen: dataUrl
         });
-
-        const texto = await respuesta.text();
-        estado.textContent = texto;
-      } catch (error) {
-        console.error("Error al subir: ", error);
-        estado.textContent = "Error al subir la imagen.";
-      }
     }
   </script>
 </body>
