@@ -2,61 +2,104 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
-  <title>Captura de Fotos</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Captura de Foto y Subida a Drive</title>
   <style>
-    body { font-family: sans-serif; text-align: center; padding: 20px; }
-    video, canvas, img { max-width: 100%; margin: 10px 0; }
-    input, button { padding: 10px; font-size: 16px; margin: 5px; }
-    #estado { margin-top: 15px; font-weight: bold; }
+    body {
+      font-family: sans-serif;
+      text-align: center;
+      padding: 20px;
+      background: #f9f9f9;
+    }
+    video, canvas, img {
+      margin-top: 10px;
+      max-width: 100%;
+    }
+    select, input, button {
+      padding: 10px;
+      margin: 10px 5px;
+      font-size: 16px;
+    }
+    button {
+      background-color: #2196F3;
+      color: white;
+      border: none;
+      cursor: pointer;
+    }
   </style>
 </head>
 <body>
-  <h1>Captura de Foto</h1>
-  
-  <label>Nombre de la foto:</label><br>
-  <input type="text" id="nombre" placeholder="Ej: Producto1"><br><br>
+  <h2>Captura de Foto para Agentes</h2>
 
-  <video id="video" autoplay playsinline width="320" height="240"></video><br>
-  <button onclick="capturar()">📸 Tomar foto</button><br><br>
+  <label for="agente">Selecciona tu nombre:</label>
+  <select id="agente" required>
+    <option value="">-- Selecciona --</option>
+    <option value="Nayra">Nayra</option>
+    <option value="Jorge">Jorge</option>
+    <option value="Jonathan">Jonathan</option>
+    <option value="Rita">Rita</option>
+    <option value="Andrea">Andrea</option>
+    <option value="Mariam">Mariam</option>
+    <option value="Jennifer">Jennifer</option>
+    <option value="Dylan">Dylan</option>
+    <option value="Jorge C">Jorge C</option>
+  </select><br>
 
+  <input type="text" id="nombreFoto" placeholder="Nombre de la foto (ej: carnet_frente)" required /><br>
+  <video id="video" width="320" height="240" autoplay></video><br>
+  <button onclick="tomarFoto()">📸 Tomar Foto</button><br>
   <canvas id="canvas" width="320" height="240" style="display:none;"></canvas>
-  <img id="preview" alt="Foto tomada"><br>
-  <div id="estado"></div>
+  <img id="preview" style="margin-top:10px;"><br>
 
   <script>
     const video = document.getElementById('video');
     const canvas = document.getElementById('canvas');
     const preview = document.getElementById('preview');
-    const estado = document.getElementById('estado');
-    const nombreInput = document.getElementById('nombre');
 
-    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwKvJOBgLpg23pU8CWB3R8P5qkIwbpyppFj4UqGgPOq4lS12LpDSI__7dO9mIRyw5mjPw/exec";
-
+    // Iniciar cámara
     navigator.mediaDevices.getUserMedia({ video: true })
       .then(stream => video.srcObject = stream)
-      .catch(err => alert("Error al acceder a la cámara: " + err));
+      .catch(error => alert("Error al acceder a la cámara: " + error));
 
-    function capturar() {
+    function tomarFoto() {
+      const agente = document.getElementById('agente').value;
+      const nombre = document.getElementById('nombreFoto').value.trim();
+
+      if (!agente) {
+        alert("Por favor selecciona tu nombre.");
+        return;
+      }
+
+      if (!nombre) {
+        alert("Por favor ingresa un nombre para la foto.");
+        return;
+      }
+
       const ctx = canvas.getContext('2d');
       ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-      const dataURL = canvas.toDataURL('image/jpeg');
-      preview.src = dataURL;
-      estado.innerText = "Enviando foto a Google Drive...";
 
-      const base64Image = dataURL.split(',')[1];
-      const nombre = nombreInput.value.trim() || "foto_" + Date.now();
+      canvas.toBlob(blob => {
+        const formData = new FormData();
+        const nombreFinal = `${agente}_${nombre}.jpg`;
 
-      const formData = new FormData();
-      formData.append("image", base64Image);
-      formData.append("nombre", nombre);
+        formData.append('file', blob, nombreFinal);
+        formData.append('filename', nombreFinal);
+        formData.append('folder', 'Agentes');
 
-      fetch(SCRIPT_URL, {
-        method: "POST",
-        body: formData
-      })
-      .then(res => res.text())
-      .then(txt => estado.innerText = txt)
-      .catch(err => estado.innerText = "Error al subir: " + err);
+        fetch("https://script.google.com/macros/s/AKfycbwKvJOBgLpg23pU8CWB3R8P5qkIwbpyppFj4UqGgPOq4lS12LpDSI__7dO9mIRyw5mjPw/exec", {
+          method: 'POST',
+          body: formData
+        })
+        .then(res => res.text())
+        .then(result => {
+          alert("✅ Foto subida correctamente.");
+          preview.src = canvas.toDataURL('image/jpeg');
+        })
+        .catch(err => {
+          console.error(err);
+          alert("❌ Error al subir la imagen.");
+        });
+      }, 'image/jpeg');
     }
   </script>
 </body>
