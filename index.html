@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Captura de Fotos para Drive</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6; /* Tailwind gray-100 */
+        }
+        .app-container {
+            max-width: 700px;
+            margin: 2rem auto;
+            padding: 2rem;
+            background-color: white;
+            border-radius: 0.75rem; /* Tailwind rounded-xl */
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05); /* Tailwind shadow-lg */
+        }
+        video, canvas {
+            border-radius: 0.5rem; /* Tailwind rounded-lg */
+            border: 1px solid #d1d5db; /* Tailwind gray-300 */
+        }
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.5rem;
+            font-weight: 600;
+            transition: background-color 0.2s;
+            cursor: pointer;
+        }
+        .btn-primary {
+            background-color: #3b82f6; /* Tailwind blue-500 */
+            color: white;
+        }
+        .btn-primary:hover {
+            background-color: #2563eb; /* Tailwind blue-600 */
+        }
+        .btn-secondary {
+            background-color: #6b7280; /* Tailwind gray-500 */
+            color: white;
+        }
+        .btn-secondary:hover {
+            background-color: #4b5563; /* Tailwind gray-600 */
+        }
+        .btn-success {
+            background-color: #10b981; /* Tailwind green-500 */
+            color: white;
+        }
+        .btn-success:hover {
+            background-color: #059669; /* Tailwind green-600 */
+        }
+        .form-select, .form-input {
+            border-radius: 0.375rem; /* Tailwind rounded-md */
+            border: 1px solid #d1d5db; /* Tailwind gray-300 */
+            padding: 0.5rem 0.75rem;
+            width: 100%;
+        }
+        .form-input:focus, .form-select:focus {
+            outline: 2px solid transparent;
+            outline-offset: 2px;
+            border-color: #3b82f6; /* Tailwind blue-500 */
+            box-shadow: 0 0 0 2px #3b82f6; /* Tailwind ring-blue-500 */
+        }
+        .hidden {
+            display: none;
+        }
+        .spinner {
+            border: 4px solid rgba(0, 0, 0, 0.1);
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            border-left-color: #3b82f6; /* Tailwind blue-500 */
+            animation: spin 1s ease infinite;
+            margin: 20px auto;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        /* Custom modal styles */
+        .modal {
+            position: fixed;
+            inset: 0;
+            background-color: rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 50;
+            padding: 1rem;
+        }
+        .modal-content {
+            background-color: white;
+            padding: 2rem;
+            border-radius: 0.5rem;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            max-width: 500px;
+            width: 100%;
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <header class="text-center mb-8">
+            <h1 class="text-3xl font-bold text-gray-800">Captura de Fotos para Clientes</h1>
+            <p class="text-gray-600 mt-2">Seleccione su nombre, tome una foto del cliente y nómbrela.</p>
+        </header>
+
+        <div class="mb-6">
+            <label for="userSelect" class="block text-sm font-medium text-gray-700 mb-1">Seleccione su Nombre:</label>
+            <select id="userSelect" class="form-select">
+                <option value="">-- Por favor seleccione --</option>
+            </select>
+        </div>
+
+        <div id="cameraSection" class="mb-6 hidden">
+            <h2 class="text-xl font-semibold text-gray-700 mb-3">Tomar Foto</h2>
+            <div class="bg-gray-200 p-4 rounded-lg text-center">
+                <video id="videoPreview" width="640" height="480" autoplay playsinline class="w-full h-auto mb-4"></video>
+                <button id="takePhotoButton" class="btn btn-primary w-full sm:w-auto">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 inline-block mr-2" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M4 2a2 2 0 00-2 2v12a2 2 0 002 2h12a2 2 0 002-2V4a2 2 0 00-2-2H4zm10.5 5.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0zM10 12a4 4 0 100-8 4 4 0 000 8zm0-2a2 2 0 100-4 2 2 0 000 4z" clip-rule="evenodd" />
+                    </svg>
+                    Tomar Foto
+                </button>
+            </div>
+            <canvas id="photoCanvas" class="hidden"></canvas>
+        </div>
+        
+        <div id="loadingIndicator" class="hidden text-center my-4">
+            <div class="spinner"></div>
+            <p class="text-gray-600">Iniciando cámara...</p>
+        </div>
+
+        <div id="namingSection" class="mb-6 hidden">
+            <h2 class="text-xl font-semibold text-gray-700 mb-3">Nombrar y Descargar Foto</h2>
+            <img id="capturedPhotoPreview" src="#" alt="Foto Capturada" class="w-full h-auto mb-4 rounded-lg border border-gray-300">
+            
+            <div class="mb-4">
+                <label for="photoNameInput" class="block text-sm font-medium text-gray-700 mb-1">Nombre del Cliente (o referencia):</label>
+                <input type="text" id="photoNameInput" class="form-input" placeholder="Ej: Fachada Tienda XYZ, Contrato Firmado Juan Perez">
+            </div>
+            
+            <button id="downloadButton" class="btn btn-success w-full sm:w-auto mr-0 sm:mr-2 mb-2 sm:mb-0">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 inline-block mr-2" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clip-rule="evenodd" />
+                </svg>
+                Descargar Foto
+            </button>
+            <button id="retakeButton" class="btn btn-secondary w-full sm:w-auto">
+                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 inline-block mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
+                </svg>
+                Tomar Otra Foto
+            </button>
+        </div>
+
+        <div id="instructions" class="mt-8 p-4 bg-blue-50 border-l-4 border-blue-500 text-blue-700 rounded-md hidden">
+            <h3 class="font-semibold">Instrucciones para Google Drive:</h3>
+            <p>La foto se ha descargado a su dispositivo. Por favor, súbala manualmente a la carpeta correspondiente en Google Drive.</p>
+            <p class="mt-2 text-sm"><strong>Nota:</strong> Para una integración automática con Google Drive, se requeriría una configuración de servidor y API de Google más compleja.</p>
+        </div>
+        
+        <div id="messageModal" class="modal hidden">
+            <div class="modal-content">
+                <p id="modalMessageText" class="text-gray-700 text-center"></p>
+                <button id="modalCloseButton" class="btn btn-primary w-full mt-4">Entendido</button>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        // DOM Elements
+        const userSelect = document.getElementById('userSelect');
+        const cameraSection = document.getElementById('cameraSection');
+        const videoPreview = document.getElementById('videoPreview');
+        const takePhotoButton = document.getElementById('takePhotoButton');
+        const photoCanvas = document.getElementById('photoCanvas');
+        const namingSection = document.getElementById('namingSection');
+        const capturedPhotoPreview = document.getElementById('capturedPhotoPreview');
+        const photoNameInput = document.getElementById('photoNameInput');
+        const downloadButton = document.getElementById('downloadButton');
+        const retakeButton = document.getElementById('retakeButton');
+        const instructions = document.getElementById('instructions');
+        const loadingIndicator = document.getElementById('loadingIndicator');
+        const messageModal = document.getElementById('messageModal');
+        const modalMessageText = document.getElementById('modalMessageText');
+        const modalCloseButton = document.getElementById('modalCloseButton');
+
+        let stream; // To store the camera stream
+
+        // User data
+        const users = [
+            { name: "Jorge Cervantes", role: "Agente Externo" },
+            { name: "Nayra Sánchez", role: "Agente Externo" },
+            { name: "Leandro Chinchilla", role: "Agente Externo" },
+            { name: "Agente Externo (Vacante)", role: "Agente Externo" },
+            { name: "Rita Sánchez", role: "Agente Interno" },
+            { name: "Andrea Ulate", role: "Agente Interno" },
+            { name: "Jennifer Zamora", role: "Agente Interno" },
+            { name: "Mariam", role: "Agente Interno" }, // Assuming Mariam is a full name
+            { name: "Jonathan Hall", role: "Coordinador de Mercadeo" },
+            { name: "Dylan González", role: "Supervisor" },
+            { name: "Jorge Acuña", role: "Gerente de Ventas" }
+        ];
+
+        // Populate user dropdown
+        function populateUsers() {
+            users.forEach(user => {
+                const option = document.createElement('option');
+                option.value = user.name.replace(/\s+/g, '_'); // Create a value safe for filenames
+                option.textContent = `${user.name} (${user.role})`;
+                userSelect.appendChild(option);
+            });
+        }
+
+        // Show modal message
+        function showModal(message) {
+            modalMessageText.textContent = message;
+            messageModal.classList.remove('hidden');
+        }
+
+        // Close modal message
+        modalCloseButton.addEventListener('click', () => {
+            messageModal.classList.add('hidden');
+        });
+        
+        // Event listener for user selection
+        userSelect.addEventListener('change', async () => {
+            if (userSelect.value) {
+                cameraSection.classList.remove('hidden');
+                namingSection.classList.add('hidden');
+                instructions.classList.add('hidden');
+                await startCamera();
+            } else {
+                stopCamera();
+                cameraSection.classList.add('hidden');
+                namingSection.classList.add('hidden');
+                instructions.classList.add('hidden');
+                loadingIndicator.classList.add('hidden');
+            }
+        });
+
+        // Start camera
+        async function startCamera() {
+            stopCamera(); // Stop any existing stream
+            loadingIndicator.classList.remove('hidden');
+            videoPreview.classList.add('hidden'); // Hide video element until stream is ready
+            takePhotoButton.disabled = true;
+
+            try {
+                // Attempt to get the back camera first (environment)
+                stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false });
+                videoPreview.srcObject = stream;
+                videoPreview.onloadedmetadata = () => {
+                    videoPreview.play();
+                    loadingIndicator.classList.add('hidden');
+                    videoPreview.classList.remove('hidden');
+                    takePhotoButton.disabled = false;
+                    cameraSection.classList.remove('hidden'); // Ensure camera section is visible
+                };
+            } catch (err) {
+                console.warn("Could not get environment camera, trying default: ", err);
+                try {
+                    // Fallback to any available camera if environment camera fails
+                    stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+                    videoPreview.srcObject = stream;
+                    videoPreview.onloadedmetadata = () => {
+                        videoPreview.play();
+                        loadingIndicator.classList.add('hidden');
+                        videoPreview.classList.remove('hidden');
+                        takePhotoButton.disabled = false;
+                        cameraSection.classList.remove('hidden'); // Ensure camera section is visible
+                    };
+                } catch (finalErr) {
+                    console.error("Error accessing camera: ", finalErr);
+                    loadingIndicator.classList.add('hidden');
+                    showModal(`Error al acceder a la cámara: ${finalErr.message}. Asegúrese de haber concedido los permisos necesarios y que no haya otra aplicación usando la cámara.`);
+                    cameraSection.classList.add('hidden'); // Hide camera section if error
+                }
+            }
+        }
+
+        // Stop camera
+        function stopCamera() {
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+                stream = null;
+                videoPreview.srcObject = null;
+            }
+        }
+
+        // Take photo
+        takePhotoButton.addEventListener('click', () => {
+            if (!stream || !videoPreview.srcObject || videoPreview.paused || videoPreview.ended) {
+                showModal("La cámara no está activa o no se ha podido iniciar. Por favor, seleccione un usuario e intente iniciar la cámara de nuevo. Asegúrese de que los permisos de cámara están concedidos.");
+                // Attempt to restart camera if user clicks take photo and stream is not okay
+                if(userSelect.value) {
+                    startCamera();
+                }
+                return;
+            }
+            // Set canvas dimensions to video dimensions for full quality
+            photoCanvas.width = videoPreview.videoWidth;
+            photoCanvas.height = videoPreview.videoHeight;
+            
+            const context = photoCanvas.getContext('2d');
+            context.drawImage(videoPreview, 0, 0, photoCanvas.width, photoCanvas.height);
+            
+            const dataUrl = photoCanvas.toDataURL('image/png');
+            capturedPhotoPreview.src = dataUrl;
+            
+            cameraSection.classList.add('hidden');
+            namingSection.classList.remove('hidden');
+            instructions.classList.add('hidden');
+            stopCamera(); // Stop camera after taking photo to save resources
+        });
+
+        // Retake photo
+        retakeButton.addEventListener('click', async () => {
+            namingSection.classList.add('hidden');
+            capturedPhotoPreview.src = "#"; // Clear previous photo
+            photoNameInput.value = ""; // Clear name input
+            await startCamera(); // Restart camera
+        });
+
+        // Download photo
+        downloadButton.addEventListener('click', () => {
+            const selectedUser = userSelect.value;
+            let photoName = photoNameInput.value.trim();
+
+            if (!selectedUser) {
+                showModal("Por favor, seleccione un usuario.");
+                return;
+            }
+            if (!photoName) {
+                showModal("Por favor, ingrese un nombre para la foto.");
+                return;
+            }
+            if (capturedPhotoPreview.src === "#" || capturedPhotoPreview.src === window.location.href + "#" || !capturedPhotoPreview.src.startsWith('data:image')) { // Check if src is placeholder or invalid
+                 showModal("No se ha capturado ninguna foto válida. Por favor, tome una foto primero.");
+                 return;
+            }
+
+
+            // Sanitize photoName to be filename-friendly
+            const safePhotoName = photoName.replace(/[^a-z0-9_\-\s\.]/gi, '_').replace(/\s+/g, '_');
+            const fileName = `${selectedUser}_${safePhotoName}.png`;
+
+            const link = document.createElement('a');
+            link.href = capturedPhotoPreview.src;
+            link.download = fileName;
+            document.body.appendChild(link); // Required for Firefox
+            link.click();
+            document.body.removeChild(link);
+
+            instructions.classList.remove('hidden');
+            showModal(`Foto "${fileName}" descargada. Ahora puede subirla a Google Drive.`);
+        });
+
+        // Initialize
+        populateUsers();
+        
+        // Stop camera when page is hidden (e.g. user switches tabs)
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden) {
+                stopCamera();
+            } else {
+                // If user was selected and camera section was visible (meaning not in naming stage), restart camera
+                if (userSelect.value && !cameraSection.classList.contains('hidden') && namingSection.classList.contains('hidden')) {
+                     startCamera();
+                }
+            }
+        });
+
+        // Initial check if camera permission was already denied or to prompt if needed
+        navigator.permissions.query({name:'camera'}).then(function(permissionStatus) {
+            if (permissionStatus.state === 'denied') {
+                showModal('El permiso para acceder a la cámara fue denegado previamente. Por favor, habilite el acceso a la cámara en la configuración de su navegador para usar esta aplicación.');
+            }
+            // Listen for changes in permission
+            permissionStatus.onchange = function(){
+                if(this.state === 'denied'){
+                     showModal('El permiso para acceder a la cámara ha sido denegado. Por favor, habilite el acceso a la cámara en la configuración de su navegador.');
+                     stopCamera(); // Stop camera if permission is revoked
+                     cameraSection.classList.add('hidden');
+                     loadingIndicator.classList.add('hidden');
+                } else if (this.state === 'granted' && userSelect.value && cameraSection.classList.contains('hidden') && namingSection.classList.contains('hidden')) {
+                    // If permission granted and user was selected, and camera isn't already showing/in naming stage, try starting camera
+                    startCamera();
+                }
+            };
+        });
+
+    </script>
+</body>
+</html>
