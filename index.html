@@ -1,80 +1,88 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Captura de Fotos</title>
   <style>
-    body { font-family: Arial; text-align: center; margin: 20px; }
-    video, canvas, img { max-width: 100%; margin-top: 10px; }
-    select, button { padding: 10px; margin-top: 10px; }
+    video, img {
+      width: 100%;
+      max-width: 400px;
+      margin-top: 10px;
+    }
+    body {
+      font-family: Arial, sans-serif;
+      padding: 20px;
+      text-align: center;
+    }
   </style>
 </head>
 <body>
-  <h2>Captura de Fotos</h2>
+  <h1>Captura de Fotos</h1>
 
-  <label for="persona">Selecciona tu nombre:</label><br>
-  <select id="persona">
-    <option value="Andrea">Andrea</option>
-    <option value="rita">Rita</option>
-    <option value="nayra">Nayra</option>
-    <option value="jorge">Jorge</option>
-    <option value="jorgec">Jorge C</option>
-    <option value="mercadeo">Mercadeo</option>
-    <option value="leandro">Leandro</option>
-    <option value="Dylan">Dylan</option>
-    <option value="jonathan">Jonathan</option>
-  </select><br>
+  <label for="nombre">Nombre del archivo:</label><br>
+  <input type="text" id="nombre" placeholder="Ej: producto123"><br><br>
 
-  <video id="video" autoplay playsinline></video>
-  <canvas id="canvas" style="display:none;"></canvas>
-  <img id="preview" alt="Preview"><br>
+  <label for="carpeta">Nombre de la carpeta:</label><br>
+  <input type="text" id="carpeta" placeholder="Ej: Dylan"><br><br>
 
-  <button onclick="tomarFoto()">Tomar Foto</button>
-
-  <p id="mensaje"></p>
+  <video id="video" autoplay></video><br>
+  <button onclick="tomarFoto()">📸 Tomar Foto</button><br><br>
+  <canvas id="canvas" style="display: none;"></canvas>
+  <img id="preview" src=""><br>
+  <p id="estado"></p>
 
   <script>
     const video = document.getElementById('video');
     const canvas = document.getElementById('canvas');
     const preview = document.getElementById('preview');
-    const mensaje = document.getElementById('mensaje');
-    const persona = document.getElementById('persona');
+    const estado = document.getElementById('estado');
 
-    // Solicita cámara trasera
-    navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })
-      .then(stream => { video.srcObject = stream; })
-      .catch(err => { mensaje.textContent = "Error accediendo a la cámara: " + err; });
+    // Solicita acceso a la cámara
+    navigator.mediaDevices.getUserMedia({ video: true })
+      .then(stream => {
+        video.srcObject = stream;
+      })
+      .catch(err => {
+        console.error("Error al acceder a la cámara: ", err);
+      });
 
-    function tomarFoto() {
+    async function tomarFoto() {
+      const nombre = document.getElementById('nombre').value.trim();
+      const carpeta = document.getElementById('carpeta').value.trim();
+
+      if (!nombre || !carpeta) {
+        estado.textContent = "Por favor ingresa nombre y carpeta.";
+        return;
+      }
+
       canvas.width = video.videoWidth;
       canvas.height = video.videoHeight;
       canvas.getContext('2d').drawImage(video, 0, 0);
-      const imageBase64 = canvas.toDataURL("image/jpeg");
-      preview.src = imageBase64;
-      mensaje.textContent = "Subiendo imagen...";
 
-      const data = {
-        carpeta: persona.value,
-        nombre: "foto_" + Date.now(),
-        image: imageBase64
-      };
+      const dataUrl = canvas.toDataURL("image/jpeg");
+      preview.src = dataUrl;
+      estado.textContent = "Subiendo imagen...";
 
-      fetch('https://script.google.com/macros/s/AKfycbyRXdSd2-6fhs1DT34qjpTKY8LRw9iONzyTjmVvSKRKZC72-1Al4Gh75fmtBNy8cfUN1w/exec', {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data)
-      })
-      .then(res => res.json())
-      .then(json => {
-        if (json.status === "success") {
-          mensaje.textContent = json.message;
-        } else {
-          mensaje.textContent = "Error: " + json.message;
-        }
-      })
-      .catch(err => {
-        mensaje.textContent = "Error al subir: " + err;
-      });
+      try {
+        const respuesta = await fetch('https://script.google.com/macros/s/AKfycbwQle8Zajd1-QxVNWTEgmRqhMQuwSszHtrVEk_5EkZZiLrtmY_8v-2pdR0vnygdLwX1ig/exec', {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            nombre: nombre,
+            carpeta: carpeta,
+            image: dataUrl
+          })
+        });
+
+        const resultado = await respuesta.json();
+        estado.textContent = resultado.message || "Subido con éxito.";
+      } catch (error) {
+        console.error("Error al subir: ", error);
+        estado.textContent = "Error al subir la imagen.";
+      }
     }
   </script>
 </body>
