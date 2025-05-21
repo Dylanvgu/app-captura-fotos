@@ -6,116 +6,112 @@
   <title>Registro Fotográfico Mayoreo</title>
   <style>
     body {
-      font-family: 'Arial', sans-serif;
-      text-align: center;
+      font-family: Arial, sans-serif;
       padding: 20px;
-      background-color: #f0f2f5;
-    }
-    h1 {
-      color: #333;
-    }
-    video, canvas {
-      width: 100%;
-      max-width: 400px;
-      margin-bottom: 10px;
-      border-radius: 10px;
+      text-align: center;
+      background: #f4f4f4;
     }
     select, input, button {
-      font-size: 1rem;
-      margin: 10px 5px;
+      margin: 10px;
       padding: 10px;
+      font-size: 16px;
     }
-    #mensaje {
+    video, canvas {
       margin-top: 15px;
+      max-width: 90%;
+      height: auto;
+      border: 2px solid #ccc;
+    }
+    #status {
+      margin-top: 20px;
       font-weight: bold;
     }
   </style>
 </head>
 <body>
-  <h1>Registro Fotográfico Mayoreo</h1>
 
+  <h2>Registro Fotográfico Mayoreo</h2>
+
+  <label for="usuario">Seleccione su nombre:</label><br>
   <select id="usuario">
-    <option value="">Selecciona un usuario</option>
+    <option value="" disabled selected>-- Seleccione --</option>
     <option value="Andrea">Andrea</option>
-    <option value="rita">Rita</option>
-    <option value="nayra">Nayra</option>
-    <option value="jorge">Jorge</option>
-    <option value="jorgec">Jorge C</option>
-    <option value="mercadeo">Mercadeo</option>
-    <option value="leandro">Leandro</option>
+    <option value="Rita">Rita</option>
+    <option value="Nayra">Nayra</option>
+    <option value="Jorge">Jorge</option>
+    <option value="JorgeC">Jorge C</option>
+    <option value="Mercadeo">Mercadeo</option>
+    <option value="Leandro">Leandro</option>
     <option value="Dylan">Dylan</option>
-    <option value="jonathan">Jonathan</option>
-  </select>
-  <br>
+    <option value="Jonathan">Jonathan</option>
+  </select><br>
 
-  <input type="text" id="nombreFoto" placeholder="Nombre de la foto" />
-  <br>
+  <input type="text" id="nombreFoto" placeholder="Nombre de la foto"><br>
 
-  <video id="video" autoplay playsinline></video>
-  <br>
-  <button onclick="capturarFoto()">Tomar Foto</button>
-  <br>
-  <canvas id="canvas" style="display:none;"></canvas>
-  <br>
-  <button onclick="subirFoto()">Subir</button>
+  <video id="video" autoplay playsinline></video><br>
+  <button onclick="tomarFoto()">Tomar Foto</button>
 
-  <p id="mensaje"></p>
+  <canvas id="canvas"></canvas><br>
+  <button onclick="subirFoto()">Subir Foto</button>
+
+  <div id="status"></div>
 
   <script>
     const video = document.getElementById('video');
     const canvas = document.getElementById('canvas');
-    const mensaje = document.getElementById('mensaje');
+    const context = canvas.getContext('2d');
+    const status = document.getElementById('status');
 
-    // Acceder a la cámara trasera
+    // Activar cámara trasera
     navigator.mediaDevices.getUserMedia({
-      video: { facingMode: { exact: "environment" } },
-      audio: false
-    })
-    .then(stream => {
+      video: { facingMode: { exact: "environment" } }
+    }).then(stream => {
       video.srcObject = stream;
-    })
-    .catch(() => {
-      mensaje.innerText = "No se pudo acceder a la cámara trasera.";
+    }).catch(() => {
+      status.innerText = "No se pudo acceder a la cámara trasera. Se usará la frontal.";
+      navigator.mediaDevices.getUserMedia({ video: true }).then(stream => {
+        video.srcObject = stream;
+      });
     });
 
-    function capturarFoto() {
+    function tomarFoto() {
       canvas.width = video.videoWidth;
       canvas.height = video.videoHeight;
-      const context = canvas.getContext('2d');
       context.drawImage(video, 0, 0, canvas.width, canvas.height);
+      status.innerText = "Foto capturada. Listo para subir.";
     }
 
     function subirFoto() {
-      const usuario = document.getElementById('usuario').value.trim();
+      const usuario = document.getElementById('usuario').value;
       const nombre = document.getElementById('nombreFoto').value.trim();
 
       if (!usuario || !nombre) {
-        mensaje.innerText = "Debe seleccionar un usuario y escribir el nombre de la foto.";
+        status.innerText = "Debe seleccionar un nombre y escribir uno para la foto.";
         return;
       }
 
-      mensaje.innerText = "Subiendo imagen...";
+      const dataUrl = canvas.toDataURL("image/jpeg");
+      const imageBase64 = dataUrl.split(',')[1];
 
-      const dataUrl = canvas.toDataURL('image/jpeg');
-      const base64Image = dataUrl.split(',')[1]; // Solo el contenido base64
+      status.innerText = "Subiendo imagen...";
 
       fetch("https://script.google.com/macros/s/AKfycbwKvJOBgLpg23pU8CWB3R8P5qkIwbpyppFj4UqGgPOq4lS12LpDSI__7dO9mIRyw5mjPw/exec", {
         method: "POST",
         body: JSON.stringify({
           carpeta: usuario,
-          nombreFoto: nombre,
-          imagen: base64Image
+          nombreArchivo: nombre + ".jpg",
+          imagen: imageBase64
         }),
         headers: {
           "Content-Type": "application/json"
         }
       })
       .then(res => res.text())
-      .then(data => {
-        mensaje.innerText = data;
+      .then(msg => {
+        status.innerText = msg;
       })
       .catch(err => {
-        mensaje.innerText = "Error al subir: " + err.message;
+        status.innerText = "Error al subir: " + err.message;
       });
     }
   </script>
