@@ -2,91 +2,102 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <title>📷 Registro Fotográfico Mayoreo</title>
+  <title>📸 Registro Fotográfico Mayoreo</title>
   <style>
     body {
       font-family: Arial, sans-serif;
       text-align: center;
       padding: 20px;
     }
-    video, canvas {
-      display: block;
-      margin: 0 auto 15px auto;
-      border-radius: 10px;
-      box-shadow: 0 0 10px rgba(0,0,0,0.3);
+    h2 {
+      margin-bottom: 20px;
     }
-    button, select, input {
-      margin: 10px;
+    video, canvas {
+      border-radius: 8px;
+      margin-bottom: 12px;
+    }
+    select, input, button {
+      margin: 5px;
       padding: 10px;
       font-size: 16px;
+      border-radius: 6px;
     }
   </style>
 </head>
 <body>
-  <h2>📷 Registro Fotográfico Mayoreo</h2>
+  <h2>📸 Registro Fotográfico Mayoreo</h2>
 
-  <video id="video" width="320" height="240" autoplay playsinline></video>
-  <br>
-  <button onclick="tomarFoto()">💻 Tomar Foto</button>
+  <video id="video" width="320" height="240" autoplay playsinline></video><br>
+  <button onclick="tomarFoto()">📸 Tomar Foto</button><br>
 
-  <canvas id="canvas" width="320" height="240"></canvas>
+  <canvas id="canvas" width="320" height="240"></canvas><br>
 
   <select id="agente">
-    <option disabled selected>Seleccione su nombre</option>
+    <option value="">-- Selecciona tu nombre --</option>
     <option value="Andrea">Andrea</option>
+    <option value="Pablo">Pablo</option>
+    <option value="Marilyn">Marilyn</option>
+    <option value="Diego">Diego</option>
     <option value="Jorge">Jorge</option>
     <option value="Dylan">Dylan</option>
-    <option value="Marilyn">Marilyn</option>
+    <option value="Mercadeo">Mercadeo</option>
   </select>
-  <input type="text" id="nombreFoto" placeholder="Nombre de la foto">
 
+  <input type="text" id="nombreFoto" placeholder="Nombre de la foto">
   <br>
+
   <button onclick="subirFoto()">📤 Subir a Google Drive</button>
 
-  <p id="estado"></p>
-
   <script>
-    let video = document.getElementById("video");
-    let canvas = document.getElementById("canvas");
-    let ctx = canvas.getContext("2d");
-    let imagenData;
+    const video = document.getElementById("video");
+    const canvas = document.getElementById("canvas");
+    const contexto = canvas.getContext("2d");
 
-    navigator.mediaDevices.getUserMedia({ video: { facingMode: { exact: "environment" } }, audio: false })
-      .then(stream => video.srcObject = stream)
-      .catch(() => {
-        // fallback a camara frontal si la trasera falla
-        navigator.mediaDevices.getUserMedia({ video: true, audio: false })
-          .then(stream => video.srcObject = stream)
-          .catch(err => alert("No se pudo acceder a la cámara: " + err));
-      });
+    // Acceder a la cámara trasera
+    navigator.mediaDevices.getUserMedia({
+      video: { facingMode: { exact: "environment" } }, audio: false
+    })
+    .then(stream => {
+      video.srcObject = stream;
+    })
+    .catch(error => {
+      console.warn("No se pudo acceder a la cámara trasera. Usando cámara predeterminada.");
+      navigator.mediaDevices.getUserMedia({ video: true })
+        .then(stream => video.srcObject = stream);
+    });
 
     function tomarFoto() {
-      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-      imagenData = canvas.toDataURL("image/jpeg");
+      contexto.drawImage(video, 0, 0, canvas.width, canvas.height);
     }
 
     function subirFoto() {
       const nombreAgente = document.getElementById("agente").value;
-      const nombreFoto = document.getElementById("nombreFoto").value || "foto_sin_nombre";
+      const nombreFoto = document.getElementById("nombreFoto").value.trim();
 
-      if (!imagenData || !nombreAgente) {
-        document.getElementById("estado").innerText = "Debe tomar una foto y seleccionar su nombre.";
+      if (!nombreAgente || !nombreFoto) {
+        alert("⚠️ Debes seleccionar tu nombre y escribir un nombre para la foto.");
         return;
       }
 
-      const imagenBase64 = imagenData.replace(/^data:image\/jpeg;base64,/, "");
+      canvas.toBlob(blob => {
+        const formData = new FormData();
+        formData.append("image", blob, nombreFoto + ".png");
+        formData.append("carpeta", nombreAgente);
 
-      fetch("https://script.google.com/macros/s/AKfycbzLIJifDTMgKdGU4CT4CI-oVUTymK5Ueo-0D4khxw4QJZlfbOUUAwjlHEHtYQOg1WzD/exec", {
-        method: "POST",
-        body: new URLSearchParams({
-          image: imagenBase64,
-          fileName: nombreFoto + ".jpg",
-          nombre: nombreAgente
+        fetch("https://script.google.com/macros/s/AKfycbwKvJOBgLpg23pU8CWB3R8P5qkIwbpyppFj4UqGgPOq4lS12LpDSI__7dO9mIRyw5mjPw/exec", {
+          method: "POST",
+          body: formData
         })
-      })
-      .then(res => res.text())
-      .then(msg => document.getElementById("estado").innerText = msg)
-      .catch(err => document.getElementById("estado").innerText = "Error al subir: " + err);
+        .then(res => res.text())
+        .then(data => {
+          alert(data);
+          document.getElementById("nombreFoto").value = "";
+        })
+        .catch(err => {
+          console.error(err);
+          alert("❌ Error al subir: " + err.message);
+        });
+      }, "image/png");
     }
   </script>
 </body>
