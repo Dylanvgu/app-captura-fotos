@@ -2,114 +2,62 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Captura y Sube a Google Drive</title>
-  <script src="https://apis.google.com/js/api.js"></script>
+  <title>Captura de Fotos</title>
   <style>
-    body {
-      font-family: sans-serif;
-      text-align: center;
-      padding: 20px;
-      background: #f7f7f7;
-    }
-    video, canvas, img {
-      border: 2px solid #ccc;
-      margin: 10px auto;
-      max-width: 100%;
-    }
-    input, button {
-      margin: 10px;
-      padding: 10px;
-      font-size: 16px;
-    }
-    button {
-      cursor: pointer;
-      background: #2196f3;
-      color: white;
-      border: none;
-      border-radius: 5px;
-    }
-    button:hover {
-      background: #0d8bf2;
-    }
+    body { font-family: sans-serif; text-align: center; padding: 20px; }
+    video, canvas, img { max-width: 100%; margin: 10px 0; }
+    input, button { padding: 10px; font-size: 16px; margin: 5px; }
+    #estado { margin-top: 15px; font-weight: bold; }
   </style>
 </head>
 <body>
-  <h2>📸 Captura y Sube a Google Drive</h2>
+  <h1>Captura de Foto</h1>
+  
+  <label>Nombre de la foto:</label><br>
+  <input type="text" id="nombre" placeholder="Ej: Producto1"><br><br>
 
-  <video id="video" autoplay playsinline width="300"></video><br>
-  <button id="capture">Tomar Foto</button><br>
+  <video id="video" autoplay playsinline width="320" height="240"></video><br>
+  <button onclick="capturar()">📸 Tomar foto</button><br><br>
 
-  <canvas id="canvas" width="300" height="200" style="display:none;"></canvas>
-  <img id="photo" width="300" alt="Previsualización" /><br>
-
-  <input type="text" id="filename" placeholder="Nombre de la foto" /><br>
-  <button id="upload">Subir a Google Drive</button><br><br>
-
-  <button id="auth">🔐 Iniciar sesión con Google</button>
+  <canvas id="canvas" width="320" height="240" style="display:none;"></canvas>
+  <img id="preview" alt="Foto tomada"><br>
+  <div id="estado"></div>
 
   <script>
-    const CLIENT_ID = 'TU_CLIENT_ID_GOOGLE'; // ← REEMPLAZALO con tu ID real
-    const SCOPES = 'https://www.googleapis.com/auth/drive.file';
+    const video = document.getElementById('video');
+    const canvas = document.getElementById('canvas');
+    const preview = document.getElementById('preview');
+    const estado = document.getElementById('estado');
+    const nombreInput = document.getElementById('nombre');
 
-    // Autenticación
-    document.getElementById('auth').onclick = () => {
-      gapi.load('client:auth2', () => {
-        gapi.auth2.init({ client_id: CLIENT_ID }).then(() => {
-          gapi.auth2.getAuthInstance().signIn().then(() => {
-            alert("✅ Sesión iniciada con Google");
-          });
-        });
-      });
-    };
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwKvJOBgLpg23pU8CWB3R8P5qkIwbpyppFj4UqGgPOq4lS12LpDSI__7dO9mIRyw5mjPw/exec";
 
-    // Activar cámara
     navigator.mediaDevices.getUserMedia({ video: true })
-      .then(stream => {
-        document.getElementById('video').srcObject = stream;
+      .then(stream => video.srcObject = stream)
+      .catch(err => alert("Error al acceder a la cámara: " + err));
+
+    function capturar() {
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      const dataURL = canvas.toDataURL('image/jpeg');
+      preview.src = dataURL;
+      estado.innerText = "Enviando foto a Google Drive...";
+
+      const base64Image = dataURL.split(',')[1];
+      const nombre = nombreInput.value.trim() || "foto_" + Date.now();
+
+      const formData = new FormData();
+      formData.append("image", base64Image);
+      formData.append("nombre", nombre);
+
+      fetch(SCRIPT_URL, {
+        method: "POST",
+        body: formData
       })
-      .catch(err => alert("⚠️ Error al acceder a la cámara: " + err));
-
-    // Capturar foto
-    document.getElementById('capture').onclick = () => {
-      const canvas = document.getElementById('canvas');
-      const video = document.getElementById('video');
-      canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
-      document.getElementById('photo').src = canvas.toDataURL('image/jpeg');
-    };
-
-    // Subir a Google Drive
-    document.getElementById('upload').onclick = () => {
-      const canvas = document.getElementById('canvas');
-      const filename = document.getElementById('filename').value || 'foto';
-
-      const data = canvas.toDataURL('image/jpeg');
-      const byteString = atob(data.split(',')[1]);
-      const ab = new ArrayBuffer(byteString.length);
-      const ia = new Uint8Array(ab);
-      for (let i = 0; i < byteString.length; i++) ia[i] = byteString.charCodeAt(i);
-
-      const file = new Blob([ia], { type: 'image/jpeg' });
-
-      const metadata = {
-        name: filename + ".jpg",
-        mimeType: 'image/jpeg'
-      };
-
-      const accessToken = gapi.auth.getToken().access_token;
-      const form = new FormData();
-      form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
-      form.append('file', file);
-
-      fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id', {
-        method: 'POST',
-        headers: new Headers({ 'Authorization': 'Bearer ' + accessToken }),
-        body: form
-      }).then(res => res.json())
-        .then(val => {
-          alert("📤 Foto subida con éxito a Drive. ID: " + val.id);
-        }).catch(err => alert("❌ Error al subir: " + err));
-    };
+      .then(res => res.text())
+      .then(txt => estado.innerText = txt)
+      .catch(err => estado.innerText = "Error al subir: " + err);
+    }
   </script>
 </body>
 </html>
