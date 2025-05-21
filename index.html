@@ -3,97 +3,109 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Captura y Subida Directa</title>
+  <title>Registro Fotográfico Mayoreo</title>
   <style>
     body {
-      font-family: Arial, sans-serif;
-      text-align: center;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      background-color: #f7f7f7;
+      margin: 0;
       padding: 20px;
     }
-    video, canvas {
-      max-width: 100%;
-      margin: 10px 0;
+    h1 {
+      color: #2c3e50;
+      margin-bottom: 10px;
     }
     select, input, button {
-      margin: 5px;
+      margin: 10px;
       padding: 10px;
       font-size: 16px;
+    }
+    canvas, video {
+      margin: 10px;
+      border: 2px solid #3498db;
+      border-radius: 8px;
+    }
+    .btn {
+      background-color: #3498db;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+    .btn:hover {
+      background-color: #2980b9;
     }
   </style>
 </head>
 <body>
-  <h2>📸 Captura y Sube a Google Drive</h2>
+  <h1>📷 Registro Fotográfico Mayoreo</h1>
   <video id="video" width="320" height="240" autoplay></video>
-  <br/>
-  <button onclick="tomarFoto()">📷 Tomar Foto</button>
-  <br/>
+  <br />
+  <button class="btn" onclick="capturarFoto()">Tomar Foto</button>
+  <br />
   <canvas id="canvas" width="320" height="240"></canvas>
-  <br/>
-
-  <select id="agente">
-    <option value="">-- Selecciona un agente --</option>
-    <option>Nayra</option>
-    <option>Jorge</option>
-    <option>Jonathan</option>
-    <option>Rita</option>
-    <option>Andrea</option>
-    <option>Mariam</option>
-    <option>Jennifer</option>
-    <option>Dylan</option>
-    <option>Jorge C</option>
+  <br />
+  <select id="usuario">
+    <option value="" disabled selected>Selecciona tu nombre</option>
+    <option value="Nayra">Nayra</option>
+    <option value="Jorge">Jorge</option>
+    <option value="Jonathan">Jonathan</option>
+    <option value="Rita">Rita</option>
+    <option value="Andrea">Andrea</option>
+    <option value="Mariam">Mariam</option>
+    <option value="Jennifer">Jennifer</option>
+    <option value="Dylan">Dylan</option>
+    <option value="Jorge C">Jorge C</option>
   </select>
-
-  <input type="text" id="nombreFoto" placeholder="Nombre de la foto"/><br/>
-  <button onclick="subirFoto()">📤 Subir a Google Drive</button>
+  <br />
+  <input type="text" id="nombreFoto" placeholder="Nombre de la foto"/>
+  <br />
+  <button class="btn" onclick="subirFoto()">Subir a Google Drive</button>
 
   <script>
     const video = document.getElementById("video");
     const canvas = document.getElementById("canvas");
-    const ctx = canvas.getContext("2d");
+    const context = canvas.getContext("2d");
 
     navigator.mediaDevices.getUserMedia({ video: true })
-      .then(stream => {
+      .then((stream) => {
         video.srcObject = stream;
-      })
-      .catch(error => {
-        console.error("No se pudo acceder a la cámara", error);
       });
 
-    function tomarFoto() {
-      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    function capturarFoto() {
+      context.drawImage(video, 0, 0, canvas.width, canvas.height);
     }
 
     function subirFoto() {
       const nombre = document.getElementById("nombreFoto").value.trim();
-      const agente = document.getElementById("agente").value.trim();
-      if (!nombre || !agente) {
-        alert("Selecciona un agente y escribe el nombre de la foto.");
+      const usuario = document.getElementById("usuario").value;
+      if (!nombre || !usuario) {
+        alert("Por favor selecciona tu nombre y asigna un nombre a la foto.");
         return;
       }
 
-      const imageData = canvas.toDataURL("image/jpeg");
-      const blobBin = atob(imageData.split(',')[1]);
-      const array = [];
-      for (let i = 0; i < blobBin.length; i++) {
-        array.push(blobBin.charCodeAt(i));
-      }
-      const file = new Blob([new Uint8Array(array)], { type: 'image/jpeg' });
-
-      const formData = new FormData();
-      formData.append("file", file, `${agente}_${nombre}.jpg`);
-
+      const dataUrl = canvas.toDataURL("image/png");
       fetch("https://script.google.com/macros/s/AKfycbwKvJOBgLpg23pU8CWB3R8P5qkIwbpyppFj4UqGgPOq4lS12LpDSI__7dO9mIRyw5mjPw/exec", {
         method: "POST",
-        body: formData,
+        body: JSON.stringify({
+          image: dataUrl,
+          filename: nombre,
+          usuario: usuario
+        }),
+        headers: {
+          "Content-Type": "application/json"
+        }
       })
-      .then(response => response.text())
-      .then(result => {
-        alert("✅ Foto subida con éxito");
-        document.getElementById("nombreFoto").value = "";
+      .then(res => res.text())
+      .then(msg => {
+        alert("✅ Foto subida correctamente.");
       })
-      .catch(error => {
-        alert("❌ Error al subir la foto");
-        console.error(error);
+      .catch(err => {
+        alert("❌ Error al subir la foto.");
+        console.error(err);
       });
     }
   </script>
